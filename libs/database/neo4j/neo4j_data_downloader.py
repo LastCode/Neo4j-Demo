@@ -23,19 +23,37 @@ class Neo4jDataDownloader:
             result = session.run(query)
             return [record.data() for record in result]
 
+    def get_all_labels(self):
+        """取得所有節點標籤"""
+        query = "CALL db.labels()"
+        return [record['label'] for record in self.fetch_data(query)]
+
+    def get_all_relationship_types(self):
+        """取得所有關係類型"""
+        query = "CALL db.relationshipTypes()"
+        return [record['relationshipType'] for record in self.fetch_data(query)]
+
+    def generate_queries(self):
+        """動態生成查詢指令"""
+        queries = {}
+
+        # 節點查詢（取得所有屬性）
+        for label in self.get_all_labels():
+            queries[f"nodes_{label}"] = f"MATCH (n:`{label}`) RETURN properties(n) AS node_properties"
+
+        # 關係查詢（取得起點、終點、關係所有屬性）
+        for rel_type in self.get_all_relationship_types():
+            queries[f"relationships_{rel_type}"] = (
+                f"MATCH (a)-[r:`{rel_type}`]->(b) "
+                f"RETURN properties(a) AS from_node, type(r) AS rel_type, properties(r) AS rel_properties, properties(b) AS to_node"
+            )
+
+        return queries
+
     def get_all_data(self):
-        queries = {
-            'schools': 'MATCH (s:School) RETURN s.name AS name',
-            'teachers': 'MATCH (t:Teacher) RETURN t.name AS name',
-            'students': 'MATCH (st:Student) RETURN st.name AS name',
-            'courses': 'MATCH (c:Course) RETURN c.title AS title',
-            'employs': 'MATCH (s:School)-[r:EMPLOYS]->(t:Teacher) RETURN s.name AS school, t.name AS teacher',
-            'has_course': 'MATCH (s:School)-[r:HAS_COURSE]->(c:Course) RETURN s.name AS school, c.title AS course',
-            'teaches': 'MATCH (t:Teacher)-[r:TEACHES]->(c:Course) RETURN t.name AS teacher, c.title AS course',
-            'attends': 'MATCH (st:Student)-[r:ATTENDS]->(s:School) RETURN st.name AS student, s.name AS school',
-            'enrolled_in': 'MATCH (st:Student)-[r:ENROLLED_IN]->(c:Course) RETURN st.name AS student, c.title AS course'
-        }
+        """動態查詢所有節點和關係資料"""
         data = {}
+        queries = self.generate_queries()
         for key, query in queries.items():
             data[key] = self.fetch_data(query)
         return data
@@ -52,7 +70,7 @@ class Neo4jDataDownloader:
             with open(f'output/school/json/{key}.json', 'w', encoding='utf-8') as f:
                 json.dump(records, f, ensure_ascii=False, indent=4)
 
-# 使用範例（可放在 main.py 或其他執行檔）
+# 使用範例
 if __name__ == "__main__":
     downloader = Neo4jDataDownloader()
     data = downloader.get_all_data()
