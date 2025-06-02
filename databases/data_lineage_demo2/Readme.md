@@ -64,6 +64,7 @@ CREATE (f)-[:GENERATES]->(r);
 ## 血緣追蹤查詢
 ### a. 反向追蹤 (Backward Trace)
 ```cypher
+
 MATCH path = (s:Source)-[:CONTAINS]->(:Field)-[:INPUT]->(:Transformation)-[:OUTPUT]->(:Field)-[:GENERATES]->(r:Report)
 RETURN path
 
